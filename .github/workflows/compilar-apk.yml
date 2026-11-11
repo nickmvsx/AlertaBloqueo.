@@ -10,9 +10,6 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: AlertaBloqueo
     steps:
       - uses: actions/checkout@v4
 
@@ -25,11 +22,17 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: Buscar proyecto
+        run: |
+          DIR=$(dirname "$(find . -name settings.gradle.kts | head -1)")
+          echo "Proyecto en: $DIR"
+          echo "DIR=$DIR" >> "$GITHUB_ENV"
+
       - name: Compilar
-        run: gradle assembleRelease --no-daemon
+        run: cd "$DIR" && gradle assembleRelease --no-daemon
 
       - name: Renombrar instalador
-        run: cp app/build/outputs/apk/release/app-release.apk AlertaBloqueo.apk
+        run: cp "$DIR/app/build/outputs/apk/release/app-release.apk" AlertaBloqueo.apk
 
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
@@ -37,5 +40,5 @@ jobs:
           tag_name: v1.${{ github.run_number }}
           name: Alerta Bloqueo v1.${{ github.run_number }}
           body: Descarga **AlertaBloqueo.apk** desde el celular e instálalo.
-          files: AlertaBloqueo/AlertaBloqueo.apk
+          files: AlertaBloqueo.apk
           make_latest: true
