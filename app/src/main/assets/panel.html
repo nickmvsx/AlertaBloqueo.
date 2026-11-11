@@ -135,7 +135,9 @@
       <h2>Permisos necesarios</h2>
       <div id="permisos"></div>
       <p class="nota">En Xiaomi, Huawei, Oppo, Vivo o Samsung revisa también en
-        <a href="#" id="ajustes">ajustes de la app</a>: batería “Sin restricciones” e “Inicio automático” activado.</p>
+        <a href="#" id="ajustes">ajustes de la app</a>: batería “Sin restricciones” e “Inicio automático” activado.
+        En Xiaomi/Redmi/Poco, en <i>Otros permisos</i>, activa también “Mostrar ventanas emergentes en segundo plano”
+        y “Mostrar en pantalla de bloqueo”.</p>
     </section>
   </div>
 </main>
@@ -146,6 +148,7 @@
   const PERMISOS = [
     ['permNotif',    'Notificaciones', 'Para mostrar la alerta', 'pedirNotificaciones'],
     ['permPantalla', 'Pantalla completa', 'Para mostrarse sobre el bloqueo', 'pedirPantallaCompleta'],
+    ['permSobre',    'Mostrar sobre otras apps', 'Para aparecer al instante en cualquier app', 'pedirSobreApps'],
     ['permBateria',  'Sin límite de batería', 'Para recibir alertas a tiempo', 'pedirBateria'],
     ['permExacta',   'Alarmas exactas', 'Para la alerta programada', 'pedirAlarmaExacta'],
   ];
@@ -162,7 +165,7 @@
     try { e = JSON.parse(A.estado()); }
     catch (_) { e = { titulo:'¡Atención!', mensaje:'Vista previa', hora:'08:00', diario:true, activo:false,
       codigo:'abcd-efgh-jkmn', recibir:true, destino:'', permNotif:true, permPantalla:false,
-      permExacta:true, permBateria:false, proxima:'' }; }
+      permExacta:true, permBateria:false, permSobre:false, proxima:'' }; }
     if (!cargado) {
       $('titulo').value = e.titulo; $('mensaje').value = e.mensaje; $('hora').value = e.hora;
       $('diario').checked = e.diario; $('activo').checked = e.activo;

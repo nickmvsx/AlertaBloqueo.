@@ -1,6 +1,8 @@
 package pe.nick.alertabloqueo
 
 import android.app.AlarmManager
+import android.app.KeyguardManager
+import android.os.PowerManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,6 +13,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import java.util.Calendar
 
@@ -141,10 +144,31 @@ object Programador {
         try {
             c.getSystemService(NotificationManager::class.java).notify(NOTIF_ID, b.build())
         } catch (e: SecurityException) { /* sin permiso de notificaciones */ }
+
+        val km = c.getSystemService(KeyguardManager::class.java)
+        val pm = c.getSystemService(PowerManager::class.java)
+        val desbloqueado = pm.isInteractive && !km.isKeyguardLocked
+
+        if (desbloqueado && puedeSobreponer(c)) {
+            // Celular en uso (en cualquier app): capa flotante a pantalla completa encima de todo.
+            AlertaFlotante.mostrar(c)
+        } else if (puedeSobreponer(c)) {
+            // Bloqueado o apagado: además del full-screen intent, se abre la pantalla de alerta.
+            try {
+                c.startActivity(
+                    Intent(c, AlertActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                )
+            } catch (e: Exception) { /* queda la notificación full-screen */ }
+        }
     }
+
+    fun puedeSobreponer(c: Context) = Settings.canDrawOverlays(c)
 
     /** Apaga: quita la notificación y cierra la pantalla de alerta si está abierta. */
     fun apagar(c: Context) {
+        Vibracion.detener()
+        AlertaFlotante.ocultar(c)
         c.getSystemService(NotificationManager::class.java).cancel(NOTIF_ID)
         c.sendBroadcast(Intent(ACCION_CERRAR).setPackage(c.packageName))
     }

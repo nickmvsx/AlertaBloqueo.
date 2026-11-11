@@ -74,6 +74,7 @@ class MainActivity : Activity() {
             .put("permPantalla", Programador.puedePantallaCompleta(c))
             .put("permExacta", Programador.puedeAlarmaExacta(c))
             .put("permBateria", bateriaOk())
+            .put("permSobre", Programador.puedeSobreponer(c))
             .put("proxima", if (Config.activo(c)) fmt(Programador.proxima(Config.hora(c))) else "")
             .toString()
 
@@ -157,6 +158,11 @@ class MainActivity : Activity() {
             startActivity(
                 Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
             )
+        }
+
+        @JavascriptInterface
+        fun pedirSobreApps() = runOnUiThread {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
 
         @JavascriptInterface

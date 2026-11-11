@@ -6,14 +6,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioAttributes
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.VibrationAttributes
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -27,9 +21,7 @@ import org.json.JSONObject
  */
 class AlertActivity : Activity() {
 
-    private var vibrador: Vibrator? = null
     private lateinit var web: WebView
-    private val handler = Handler(Looper.getMainLooper())
 
     private val cerrar = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) { detener(); finish() }
@@ -71,29 +63,9 @@ class AlertActivity : Activity() {
         vibrar()
     }
 
-    private fun vibrar() {
-        detener()
-        vibrador = getSystemService(Vibrator::class.java)
-        val v = vibrador ?: return
-        val amplitudes = IntArray(Programador.PATRON.size) { if (it % 2 == 1) 255 else 0 }
-        val efecto = if (v.hasAmplitudeControl())
-            VibrationEffect.createWaveform(Programador.PATRON, amplitudes, 1)
-        else
-            VibrationEffect.createWaveform(Programador.PATRON, 1)
+    private fun vibrar() = Vibracion.iniciar(this)
 
-        if (Build.VERSION.SDK_INT >= 33) {
-            v.vibrate(efecto, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
-        } else {
-            @Suppress("DEPRECATION")
-            v.vibrate(efecto, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
-        }
-        handler.postDelayed({ detener() }, 2 * 60 * 1000L) // deja de vibrar a los 2 min
-    }
-
-    private fun detener() {
-        vibrador?.cancel()
-        handler.removeCallbacksAndMessages(null)
-    }
+    private fun detener() = Vibracion.detener()
 
     private fun apagar() {
         detener()
@@ -105,7 +77,6 @@ class AlertActivity : Activity() {
     override fun onBackPressed() { /* se cierra solo con el botón Apagar */ }
 
     override fun onDestroy() {
-        detener()
         try { unregisterReceiver(cerrar) } catch (_: Exception) {}
         super.onDestroy()
     }
