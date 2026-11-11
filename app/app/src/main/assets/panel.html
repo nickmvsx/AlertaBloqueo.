@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alerta Bloqueo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, Roboto, sans-serif; background: #f3f5f8; color: #1d2633; }
+  header { background: #1F4E79; color: #fff; padding: 20px 16px 0; }
+  header h1 { margin: 0 0 14px; font-size: 22px; }
+  nav { display: flex; }
+  nav button {
+    flex: 1; background: none; border: 0; color: rgba(255,255,255,.7); font-size: 15px; font-weight: 600;
+    padding: 12px 4px; border-bottom: 3px solid transparent; margin: 0; border-radius: 0; width: auto;
+  }
+  nav button.on { color: #fff; border-bottom-color: #fff; }
+  main { padding: 16px; max-width: 560px; margin: 0 auto; }
+  .tab { display: none; gap: 14px; }
+  .tab.on { display: grid; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { margin: 0 0 12px; font-size: 16px; color: #1F4E79; }
+  label.t { display: block; font-size: 13px; color: #5a6676; margin: 10px 0 4px; }
+  input[type=text], input[type=time], textarea {
+    width: 100%; padding: 12px; font-size: 16px; border: 1px solid #d5dbe3; border-radius: 10px; font-family: inherit;
+    background: #fff;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  .fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #eef1f5; }
+  .fila:first-of-type { border-top: 0; }
+  .sw { position: relative; width: 50px; height: 28px; flex: none; }
+  .sw input { opacity: 0; width: 0; height: 0; }
+  .sw span { position: absolute; inset: 0; background: #c9d1db; border-radius: 99px; transition: .2s; }
+  .sw span::before { content: ""; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .sw input:checked + span { background: #1F4E79; }
+  .sw input:checked + span::before { transform: translateX(22px); }
+  button { width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border-radius: 10px; border: 0; margin-top: 10px; font-family: inherit; }
+  .prim { background: #1F4E79; color: #fff; }
+  .rojo { background: #C00000; color: #fff; }
+  .sec  { background: #e7edf4; color: #1F4E79; }
+  button:disabled { opacity: .55; }
+  .codigo {
+    font-size: 30px; font-weight: 700; letter-spacing: 2px; text-align: center; color: #1F4E79;
+    background: #eef3f9; border-radius: 12px; padding: 16px 8px; font-family: ui-monospace, monospace;
+    user-select: all;
+  }
+  .imgsel { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .imgsel button { margin: 0; flex: 1; }
+  .imgsel .x { flex: none; width: 48px; }
+  .perm { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid #eef1f5; }
+  .perm:first-child { border-top: 0; }
+  .perm b { font-weight: 500; font-size: 14px; }
+  .perm small { display: block; color: #5a6676; font-size: 12px; margin-top: 2px; }
+  .ok { color: #1b7a3d; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .perm button { width: auto; padding: 8px 14px; margin: 0; font-size: 13px; background: #C00000; color: #fff; flex: none; }
+  .aviso { font-size: 14px; color: #1F4E79; min-height: 18px; margin: 10px 0 0; }
+  .nota { font-size: 12.5px; color: #5a6676; line-height: 1.45; margin: 10px 0 0; }
+  a { color: #1F4E79; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Alerta Bloqueo</h1>
+  <nav>
+    <button data-tab="enviar" class="on">Enviar</button>
+    <button data-tab="recibir">Recibir</button>
+    <button data-tab="programar">Programar</button>
+    <button data-tab="permisos">Permisos</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ENVIAR -->
+  <div class="tab on" id="tab-enviar">
+    <section class="card">
+      <h2>Enviar alerta a otro celular</h2>
+      <label class="t" for="destino">Código del otro celular</label>
+      <input id="destino" type="text" placeholder="abcd-efgh-jkmn" autocapitalize="none" autocomplete="off">
+      <label class="t" for="eTitulo">Título</label>
+      <input id="eTitulo" type="text" maxlength="60" value="¡Atención!">
+      <label class="t" for="eMensaje">Mensaje</label>
+      <textarea id="eMensaje" maxlength="300" placeholder="Escribe el mensaje…"></textarea>
+      <div class="imgsel">
+        <button class="sec" id="elegir">📷 Elegir imagen</button>
+        <button class="sec x" id="quitar" style="display:none">✕</button>
+      </div>
+      <button class="rojo" id="enviar">Enviar alerta</button>
+      <p class="aviso" id="avisoEnviar"></p>
+      <p class="nota">El otro celular vibrará y mostrará la alerta aunque esté bloqueado.
+        Para probar con un solo celular, escribe tu propio código.</p>
+    </section>
+  </div>
+
+  <!-- RECIBIR -->
+  <div class="tab" id="tab-recibir">
+    <section class="card">
+      <h2>Tu código</h2>
+      <div class="codigo" id="miCodigo">----</div>
+      <button class="prim" id="compartir">Compartir mi código</button>
+      <div class="fila" style="margin-top:10px">
+        <span><b>Recibir alertas</b><br><small style="color:#5a6676">Apágalo para no recibir nada</small></span>
+        <label class="sw"><input id="recibir" type="checkbox"><span></span></label>
+      </div>
+      <p class="nota">Quien tenga tu código puede enviarte alertas. Compártelo solo con personas de confianza.</p>
+    </section>
+  </div>
+
+  <!-- PROGRAMAR -->
+  <div class="tab" id="tab-programar">
+    <section class="card">
+      <h2>Alerta programada en este celular</h2>
+      <label class="t" for="titulo">Título</label>
+      <input id="titulo" type="text" maxlength="60">
+      <label class="t" for="mensaje">Mensaje</label>
+      <textarea id="mensaje" maxlength="300"></textarea>
+      <label class="t" for="hora">Hora</label>
+      <input id="hora" type="time">
+      <div class="fila" style="margin-top:8px">
+        <span>Repetir todos los días</span>
+        <label class="sw"><input id="diario" type="checkbox"><span></span></label>
+      </div>
+      <div class="fila">
+        <span><b>Activada</b><br><small id="proxima" style="color:#5a6676"></small></span>
+        <label class="sw"><input id="activo" type="checkbox"><span></span></label>
+      </div>
+      <button class="prim" id="guardar">Guardar</button>
+      <button class="sec" id="probar">Probar en 10 segundos</button>
+      <p class="aviso" id="avisoProg"></p>
+    </section>
+  </div>
+
+  <!-- PERMISOS -->
+  <div class="tab" id="tab-permisos">
+    <section class="card">
+      <h2>Permisos necesarios</h2>
+      <div id="permisos"></div>
+      <p class="nota">En Xiaomi, Huawei, Oppo, Vivo o Samsung revisa también en
+        <a href="#" id="ajustes">ajustes de la app</a>: batería “Sin restricciones” e “Inicio automático” activado.
+        En Xiaomi/Redmi/Poco, en <i>Otros permisos</i>, activa también “Mostrar ventanas emergentes en segundo plano”
+        y “Mostrar en pantalla de bloqueo”.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const A = window.Android || null;
+  const PERMISOS = [
+    ['permNotif',    'Notificaciones', 'Para mostrar la alerta', 'pedirNotificaciones'],
+    ['permPantalla', 'Pantalla completa', 'Para mostrarse sobre el bloqueo', 'pedirPantallaCompleta'],
+    ['permSobre',    'Mostrar sobre otras apps', 'Para aparecer al instante en cualquier app', 'pedirSobreApps'],
+    ['permBateria',  'Sin límite de batería', 'Para recibir alertas a tiempo', 'pedirBateria'],
+    ['permExacta',   'Alarmas exactas', 'Para la alerta programada', 'pedirAlarmaExacta'],
+  ];
+  let cargado = false;
+
+  // Pestañas
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === 'tab-' + b.dataset.tab));
+  });
+
+  function refrescar() {
+    let e;
+    try { e = JSON.parse(A.estado()); }
+    catch (_) { e = { titulo:'¡Atención!', mensaje:'Vista previa', hora:'08:00', diario:true, activo:false,
+      codigo:'abcd-efgh-jkmn', recibir:true, destino:'', permNotif:true, permPantalla:false,
+      permExacta:true, permBateria:false, permSobre:false, proxima:'' }; }
+    if (!cargado) {
+      $('titulo').value = e.titulo; $('mensaje').value = e.mensaje; $('hora').value = e.hora;
+      $('diario').checked = e.diario; $('activo').checked = e.activo;
+      $('recibir').checked = e.recibir; $('destino').value = e.destino;
+      cargado = true;
+    }
+    $('miCodigo').textContent = e.codigo;
+    $('proxima').textContent = e.activo ? 'Próxima: ' + e.proxima : 'Desactivada';
+    $('permisos').innerHTML = PERMISOS.map(([k, nombre, para, fn]) =>
+      `<div class="perm"><span><b>${nombre}</b><small>${para}</small></span>${e[k]
+        ? '<span class="ok">✓ Listo</span>'
+        : `<button onclick="Android.${fn}()">Conceder</button>`}</div>`).join('');
+    const faltan = PERMISOS.filter(p => !e[p[0]]).length;
+    document.querySelector('[data-tab=permisos]').textContent = faltan ? `Permisos (${faltan})` : 'Permisos';
+  }
+  window.refrescar = refrescar;
+
+  // Enviar
+  $('elegir').onclick = () => A && A.elegirImagen();
+  $('quitar').onclick = () => { A && A.quitarImagen(); imagenElegida(false); };
+  window.imagenElegida = ok => {
+    $('elegir').textContent = ok ? '📷 Imagen lista ✓' : '📷 Elegir imagen';
+    $('quitar').style.display = ok ? 'block' : 'none';
+  };
+  $('enviar').onclick = () => {
+    if (!A) return;
+    $('enviar').disabled = true;
+    $('avisoEnviar').textContent = 'Enviando…';
+    A.enviar($('destino').value, $('eTitulo').value.trim(), $('eMensaje').value.trim());
+  };
+  window.enviado = msg => { $('enviar').disabled = false; $('avisoEnviar').textContent = msg; };
+
+  // Recibir
+  $('compartir').onclick = () => A && A.compartirCodigo();
+  $('recibir').onchange = () => A && A.setRecibir($('recibir').checked);
+
+  // Programar
+  function guardar() {
+    if (!A) return;
+    $('avisoProg').textContent = A.guardar($('titulo').value.trim() || '¡Atención!', $('mensaje').value.trim(),
+      $('hora').value || '08:00', $('diario').checked, $('activo').checked);
+    refrescar();
+  }
+  $('guardar').onclick = guardar;
+  $('activo').onchange = guardar;
+  $('probar').onclick = () => { if (!A) return; guardar(); $('avisoProg').textContent = A.probar(10); };
+
+  $('ajustes').onclick = ev => { ev.preventDefault(); A && A.abrirAjustesApp(); };
+
+  refrescar();
+</script>
+</body>
+</html>
