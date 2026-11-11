@@ -58,6 +58,13 @@ object Config {
     fun ultimoDestino(c: Context) = p(c).getString("ultimo_destino", "")!!
     fun setUltimoDestino(c: Context, v: String) = p(c).edit().putString("ultimo_destino", v).apply()
 
+    // --- Diagnóstico: qué pasó con la última alerta ---
+    fun diag(c: Context) = p(c).getString("diag", "Aún no llegó ninguna alerta.")!!
+    fun setDiag(c: Context, texto: String) {
+        val hora = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        p(c).edit().putString("diag", "$hora · $texto").apply()
+    }
+
     // --- Lo que muestra la alerta en este momento ---
     fun actualTitulo(c: Context) = p(c).getString("act_titulo", titulo(c))!!
     fun actualMensaje(c: Context) = p(c).getString("act_mensaje", mensaje(c))!!

@@ -75,6 +75,9 @@ class MainActivity : Activity() {
             .put("permExacta", Programador.puedeAlarmaExacta(c))
             .put("permBateria", bateriaOk())
             .put("permSobre", Programador.puedeSobreponer(c))
+            .put("version", packageManager.getPackageInfo(packageName, 0).versionName ?: "?")
+            .put("diag", Config.diag(c))
+            .put("marca", Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE)
             .put("proxima", if (Config.activo(c)) fmt(Programador.proxima(Config.hora(c))) else "")
             .toString()
 

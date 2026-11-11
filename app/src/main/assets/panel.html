@@ -139,6 +139,13 @@
         En Xiaomi/Redmi/Poco, en <i>Otros permisos</i>, activa también “Mostrar ventanas emergentes en segundo plano”
         y “Mostrar en pantalla de bloqueo”.</p>
     </section>
+    <section class="card">
+      <h2>Diagnóstico</h2>
+      <p class="nota" style="margin:0">Versión: <b id="version">-</b><br><span id="marca"></span></p>
+      <p class="nota">Última alerta: <b id="diag">-</b></p>
+      <button class="sec" id="probarFlot">Probar en 8 s (sal a otra app)</button>
+      <button class="sec" id="actualizarDiag">Actualizar diagnóstico</button>
+    </section>
   </div>
 </main>
 
@@ -173,6 +180,9 @@
       cargado = true;
     }
     $('miCodigo').textContent = e.codigo;
+    $('version').textContent = e.version || '-';
+    $('marca').textContent = e.marca || '';
+    $('diag').textContent = e.diag || '-';
     $('proxima').textContent = e.activo ? 'Próxima: ' + e.proxima : 'Desactivada';
     $('permisos').innerHTML = PERMISOS.map(([k, nombre, para, fn]) =>
       `<div class="perm"><span><b>${nombre}</b><small>${para}</small></span>${e[k]
@@ -213,7 +223,9 @@
   $('activo').onchange = guardar;
   $('probar').onclick = () => { if (!A) return; guardar(); $('avisoProg').textContent = A.probar(10); };
 
-  $('ajustes').onclick = ev => { ev.preventDefault(); A && A.abrirAjustesApp(); };
+  $('probarFlot').onclick = () => { if (!A) return; guardar(); A.probar(8); $('diag').textContent = 'Sal a otra app ahora…'; };
+  $('actualizarDiag').onclick = refrescar;
+  $('ajustes').onclick =ev => { ev.preventDefault(); A && A.abrirAjustesApp(); };
 
   refrescar();
 </script>

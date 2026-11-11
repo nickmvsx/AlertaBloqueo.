@@ -48,8 +48,10 @@ object AlertaFlotante {
             wm.addView(web, params)
             vista = web
             Vibracion.iniciar(app)
+            Config.setDiag(app, "Alerta flotante mostrada ✓")
         } catch (e: Exception) {
             web.destroy()
+            Config.setDiag(app, "Alerta flotante FALLÓ: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 

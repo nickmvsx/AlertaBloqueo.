@@ -149,6 +149,10 @@ object Programador {
         val pm = c.getSystemService(PowerManager::class.java)
         val desbloqueado = pm.isInteractive && !km.isKeyguardLocked
 
+        Config.setDiag(c,
+            (if (desbloqueado) "Celular desbloqueado" else "Celular bloqueado/apagado") +
+            (if (puedeSobreponer(c)) ", permiso flotante OK" else ", SIN permiso 'Mostrar sobre otras apps'"))
+
         if (desbloqueado && puedeSobreponer(c)) {
             // Celular en uso (en cualquier app): capa flotante a pantalla completa encima de todo.
             AlertaFlotante.mostrar(c)
