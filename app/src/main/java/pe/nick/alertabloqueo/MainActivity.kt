@@ -21,7 +21,7 @@ import java.util.Locale
 class MainActivity : Activity() {
 
     private lateinit var web: WebView
-    private var imagenUri: Uri? = null
+    @Volatile private var imagenBytes: ByteArray? = null
     private val ELEGIR_IMAGEN = 7
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -122,16 +122,19 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun quitarImagen() { imagenUri = null }
+        fun quitarImagen() { imagenBytes = null }
+
+        @JavascriptInterface
+        fun miCodigo(): String = Config.codigoBonito(c)
 
         @JavascriptInterface
         fun enviar(codigo: String, titulo: String, mensaje: String) {
             Config.setUltimoDestino(c, codigo)
-            val uri = imagenUri
+            val bytes = imagenBytes
             Thread {
-                val bytes = uri?.let { Envio.prepararImagen(c, it) }
                 val res = Envio.enviar(codigo, titulo.ifBlank { "¡Atención!" }, mensaje, bytes)
-                js("enviado(" + JSONObject.quote(res) + ")")
+                val ok = res.startsWith("Alerta enviada")
+                js("enviado(" + JSONObject.quote(res) + "," + ok + ")")
             }.start()
         }
 
@@ -180,8 +183,19 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         val uri = data?.data
         if (requestCode == ELEGIR_IMAGEN && resultCode == RESULT_OK && uri != null) {
-            imagenUri = uri
-            js("imagenElegida(true)")
+            js("imagenCargando()")
+            Thread {
+                // Se prepara la imagen (reducida a JPEG) y se manda al HTML para previsualizarla.
+                val bytes = Envio.prepararImagen(this, uri)
+                imagenBytes = bytes
+                if (bytes != null) {
+                    val dataUrl = "data:image/jpeg;base64," +
+                        android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    js("imagenElegida(" + JSONObject.quote(dataUrl) + ")")
+                } else {
+                    js("imagenElegida(null)")
+                }
+            }.start()
         }
     }
 

@@ -8,48 +8,50 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
-    font-family: system-ui, Roboto, sans-serif;
-    background: radial-gradient(circle at 50% 20%, #1F4E79 0%, #0b1a2b 70%);
-    color: #fff;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: 48px 24px 40px; text-align: center;
+    font-family: system-ui, -apple-system, Roboto, sans-serif;
+    background: #121212; color: #fff;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 22px calc(28px + env(safe-area-inset-bottom)); text-align: center;
   }
-  .hora { font-size: 64px; font-weight: 300; letter-spacing: 2px; }
-  .fecha { font-size: 16px; opacity: .75; margin-top: 4px; text-transform: capitalize; }
-  .centro { display: flex; flex-direction: column; align-items: center; gap: 20px; }
-  img {
-    width: min(78vw, 320px); max-height: 42vh; object-fit: contain;
-    border-radius: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
-    animation: temblor 1.45s ease-in-out infinite;
+  .hora { font-size: 56px; font-weight: 300; letter-spacing: 1px; }
+  .fecha { font-size: 15px; color: #9b9b9b; margin-top: 2px; text-transform: capitalize; }
+  .tarjeta {
+    margin-top: 26px; width: 100%; max-width: 420px; aspect-ratio: 1 / 1; max-height: 46vh;
+    background: #FBE3F2; border-radius: 30px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    animation: latido 1.3s ease-in-out infinite;
   }
-  @keyframes temblor {
-    0%, 100% { transform: rotate(0); }
-    10%, 30% { transform: rotate(-3deg); }
-    20%, 40% { transform: rotate(3deg); }
-    50%      { transform: rotate(0); }
+  .tarjeta img { width: 100%; height: 100%; object-fit: cover; }
+  @keyframes latido {
+    0%, 100% { transform: scale(1) rotate(0); }
+    15% { transform: scale(1.02) rotate(-1.5deg); }
+    30% { transform: scale(1.02) rotate(1.5deg); }
+    45% { transform: scale(1) rotate(0); }
   }
-  h1 { font-size: 30px; font-weight: 700; }
-  p  { font-size: 19px; line-height: 1.45; opacity: .92; max-width: 520px; white-space: pre-wrap; }
+  .chip {
+    margin-top: 20px; display: inline-block; background: #F5A9DE; color: #161616;
+    font-weight: 600; font-size: 14px; padding: 9px 18px; border-radius: 99px;
+  }
+  h1 { font-size: 32px; line-height: 1.15; font-weight: 700; margin-top: 16px; }
+  p  { font-size: 18px; line-height: 1.45; color: #cfcfcf; margin-top: 10px; max-width: 460px; white-space: pre-wrap; }
   button {
-    width: 100%; max-width: 420px; padding: 20px; border: 0; border-radius: 999px;
-    background: #C00000; color: #fff; font-size: 22px; font-weight: 700;
-    box-shadow: 0 8px 24px rgba(192,0,0,.4);
+    margin-top: auto; width: 100%; max-width: 420px; padding: 19px; border: 0; border-radius: 99px;
+    background: #fff; color: #161616; font-size: 19px; font-weight: 700; font-family: inherit;
   }
   button:active { transform: scale(.98); }
 </style>
 </head>
 <body>
-  <div>
-    <div class="hora" id="hora">--:--</div>
-    <div class="fecha" id="fecha"></div>
-  </div>
+  <div class="hora" id="hora">--:--</div>
+  <div class="fecha" id="fecha"></div>
 
-  <div class="centro">
+  <div class="tarjeta">
     <img id="imagen" src="imagen.png" alt="Imagen de la alerta"
          onerror="this.onerror=null; this.src='imagen.png'">
-    <h1 id="titulo">¡Atención!</h1>
-    <p id="mensaje">Este es tu mensaje de alerta.</p>
   </div>
+  <span class="chip">Nueva alerta</span>
+  <h1 id="titulo">¡Atención!</h1>
+  <p id="mensaje"></p>
 
   <button id="apagar">Apagar</button>
 
@@ -66,7 +68,7 @@
   try {
     const d = JSON.parse(Android.datos());
     document.getElementById('titulo').textContent = d.titulo;
-    document.getElementById('mensaje').textContent = d.mensaje.trim();
+    document.getElementById('mensaje').textContent = (d.mensaje || '').trim();
     if (d.imagen) document.getElementById('imagen').src = d.imagen;
   } catch (e) { /* vista previa fuera de la app */ }
 
