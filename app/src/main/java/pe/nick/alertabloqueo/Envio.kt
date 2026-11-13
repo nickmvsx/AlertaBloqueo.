@@ -3,6 +3,8 @@ package pe.nick.alertabloqueo
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -15,20 +17,49 @@ object Envio {
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 
-    /** Reduce la imagen a máx. 1280 px y la convierte a JPEG para que viaje rápido. */
+    /**
+     * Prepara la imagen para enviarla: la endereza según la orientación de la cámara (EXIF),
+     * la reduce a máx. 1280 px y la convierte a JPEG para que viaje rápido.
+     */
     fun prepararImagen(c: Context, uri: Uri): ByteArray? = try {
+        val cr = c.contentResolver
+        val orientacion = try {
+            cr.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            } ?: ExifInterface.ORIENTATION_NORMAL
+        } catch (e: Exception) { ExifInterface.ORIENTATION_NORMAL }
+
         val opciones = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        c.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) }
+        cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) }
         var escala = 1
         while (opciones.outWidth / (escala * 2) >= 1280 || opciones.outHeight / (escala * 2) >= 1280) escala *= 2
-        val bmp = c.contentResolver.openInputStream(uri)?.use {
+        var bmp = cr.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = escala })
+        } ?: throw IllegalStateException("sin imagen")
+
+        // Ajuste fino a 1280 px como máximo
+        val lado = maxOf(bmp.width, bmp.height)
+        if (lado > 1280) {
+            val f = 1280f / lado
+            bmp = Bitmap.createScaledBitmap(bmp, (bmp.width * f).toInt(), (bmp.height * f).toInt(), true)
         }
-        bmp?.let {
-            val out = ByteArrayOutputStream()
-            it.compress(Bitmap.CompressFormat.JPEG, 82, out)
-            out.toByteArray()
+
+        // Enderezar según EXIF
+        val m = Matrix()
+        when (orientacion) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.postScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> { m.postRotate(90f); m.postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_TRANSVERSE -> { m.postRotate(270f); m.postScale(-1f, 1f) }
         }
+        if (!m.isIdentity) bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+
+        val out = ByteArrayOutputStream()
+        bmp.compress(Bitmap.CompressFormat.JPEG, 82, out)
+        out.toByteArray()
     } catch (e: Exception) { null }
 
     /** Devuelve un texto para mostrar al usuario. */

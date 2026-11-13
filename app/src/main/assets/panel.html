@@ -18,16 +18,28 @@
     --error: #ff8a8a;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto);
-    font-family: system-ui, -apple-system, Roboto, sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fondo); color: var(--texto);
+    font-family: system-ui, -apple-system, Roboto, sans-serif; overscroll-behavior: none; }
+  button, .chip, .tarjeta, input, textarea { touch-action: manipulation; }
   button { font-family: inherit; cursor: pointer; }
-  .app { min-height: 100%; display: flex; flex-direction: column; padding: 18px 20px 0; }
-  .vista { display: none; flex: 1; flex-direction: column; }
+  button:active { opacity: .75; }
+  .app { height: 100%; display: flex; flex-direction: column; }
+  .vista { display: none; flex: 1; min-height: 0; flex-direction: column; overflow-y: auto;
+    padding: 14px 20px 0; -webkit-overflow-scrolling: touch; }
   .vista.on { display: flex; }
+  /* En Enviar, solo se desplaza el paso; los botones Atrás/Siguiente quedan siempre a la vista */
+  #v-enviar { overflow: hidden; }
+  #v-enviar .paso { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  #v-enviar .paso.oculto { display: none; }
+  #v-enviar .paso > * { flex: none; }
+  #v-enviar [data-paso="2"] .tarjeta { height: min(22vh, calc(100vw - 40px)); }
+  #v-enviar [data-paso="2"] h1.pregunta { margin: 10px 0; }
+  .progreso, .pie, #avisoEnviar { flex: none; }
+  @media (max-height: 700px) { #v-enviar .tarjeta { height: min(28vh, calc(100vw - 40px)); } h1.pregunta { font-size: 24px; margin: 10px 0; } }
 
   /* Barra de progreso por pasos */
   .progreso { display: flex; gap: 8px; margin: 4px 0 16px; }
-  .progreso i { flex: 1; height: 4px; border-radius: 4px; background: #3a3a3a; transition: background .3s; }
+  .progreso i { flex: 1; height: 4px; border-radius: 4px; background: #3a3a3a; }
   .progreso i.on { background: #fff; }
 
   /* Tarjeta rosada grande */
@@ -37,7 +49,7 @@
     overflow: hidden; position: relative; color: var(--tinta); margin: 0 auto;
   }
   .tarjeta svg.ilus { width: 78%; height: 78%; }
-  .tarjeta { aspect-ratio: auto; height: min(38vh, calc(100vw - 40px)); }
+  .tarjeta { aspect-ratio: auto; height: min(34vh, calc(100vw - 40px)); flex: none; }
   .tarjeta img.foto { width: 100%; height: 100%; object-fit: cover; }
   .tarjeta .pista { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
     background: rgba(22,22,22,.78); color: #fff; font-size: 13px; padding: 7px 14px; border-radius: 99px; white-space: nowrap; }
@@ -60,7 +72,7 @@
   .aviso.ok { color: var(--ok); }
 
   /* Pie: Atrás / Siguiente */
-  .pie { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0 14px; }
+  .pie { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0 12px; }
   .btn-texto { background: none; border: 0; color: #fff; font-size: 16px; padding: 14px 8px; }
   .btn-texto[hidden] { visibility: hidden; display: block; }
   .btn-blanco { flex: 1; max-width: 230px; background: #fff; color: var(--tinta); border: 0; border-radius: 99px;
@@ -104,7 +116,7 @@
   .btn-gris { width: 100%; background: #333; color: #fff; border: 0; border-radius: 99px; padding: 15px; font-size: 16px; font-weight: 600; margin-top: 10px; }
 
   /* Navegación inferior */
-  nav.abajo { display: flex; gap: 6px; padding: 8px 0 calc(12px + env(safe-area-inset-bottom));
+  nav.abajo { flex: none; display: flex; gap: 6px; padding: 8px 14px 10px;
     background: var(--fondo); border-top: 1px solid #1f1f1f; }
   nav.abajo button { flex: 1; background: none; border: 0; color: var(--suave); font-size: 12px; padding: 8px 2px; border-radius: 16px;
     display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
@@ -135,7 +147,7 @@
       <div class="tarjeta" id="tarjeta2"></div>
       <div class="chips" id="chipsTitulo"></div>
       <h1 class="pregunta">¿Qué quieres<br>decirle?</h1>
-      <input class="campo" id="eTitulo" type="text" maxlength="60" value="¡Atención!" placeholder="Título">
+      <input class="campo" id="eTitulo" type="text" maxlength="60" value="Te pienso" placeholder="Título">
       <textarea class="campo" id="eMensaje" maxlength="300" placeholder="Escribe el mensaje…"></textarea>
     </div>
 
@@ -143,7 +155,8 @@
     <div class="paso oculto" data-paso="3">
       <div class="tarjeta" id="tarjetaImagen" role="button" aria-label="Elegir imagen"></div>
       <div class="chips">
-        <button class="chip on" id="chipGaleria">📷 Galería</button>
+        <button class="chip" id="chipCamara">📷 Cámara</button>
+        <button class="chip" id="chipGaleria">🖼️ Galería</button>
         <button class="chip" id="chipSinImagen">Sin imagen</button>
       </div>
       <h1 class="pregunta">¿Quieres agregar<br>una imagen?</h1>
@@ -274,8 +287,7 @@
   document.querySelectorAll('nav.abajo button').forEach(b => b.onclick = () => {
     document.querySelectorAll('nav.abajo button').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
-    window.scrollTo(0, 0);
-    refrescar();
+    if (b.dataset.v !== 'enviar') refrescar();
   });
 
   // ---------- Asistente Enviar ----------
@@ -293,7 +305,7 @@
     $('avisoEnviar').textContent = ''; $('avisoEnviar').className = 'aviso';
     if (n === 3) pintarImagen();
     if (n === 4) pintarVistaPrevia();
-    window.scrollTo(0, 0);
+    $('v-enviar').scrollTop = 0;
   }
 
   function avisar(txt, tipo) { const a = $('avisoEnviar'); a.textContent = txt; a.className = 'aviso ' + (tipo || ''); }
@@ -350,7 +362,7 @@
   }
 
   // Chips de título rápido
-  const TITULOS = ['¡Atención!', 'Urgente', 'Llámame', 'Recordatorio', 'Te pienso'];
+  const TITULOS = ['Te pienso', 'Te extraño', 'Urgente', '¿Por qué no me haces caso?', '¿Qué haces?', '¿Por qué no contestas?'];
   $('chipsTitulo').innerHTML = TITULOS.map(t => `<button class="chip">${t}</button>`).join('');
   function marcarTitulo() {
     $('chipsTitulo').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === $('eTitulo').value.trim()));
@@ -365,25 +377,30 @@
     if (imagen) {
       t.innerHTML = `<img class="foto" src="${imagen}" alt="Previsualización"><span class="pista">Toca para cambiar</span>`;
     } else {
-      t.innerHTML = CARITA + `<span class="pista">Toca para elegir una imagen</span>`;
+      t.innerHTML = CARITA + `<span class="pista">Toma una foto o elige de la galería</span>`;
     }
-    $('chipGaleria').classList.toggle('on', !!imagen);
+    $('chipCamara').classList.toggle('on', origen === 'camara' && !!imagen);
+    $('chipGaleria').classList.toggle('on', origen === 'galeria' && !!imagen);
     $('chipSinImagen').classList.toggle('on', !imagen);
   }
-  function elegir() { if (A) A.elegirImagen(); }
+  let origen = '';
+  function elegir() { origen = 'galeria'; if (A) A.elegirImagen(); }
+  function camara() { origen = 'camara'; if (A) A.tomarFoto(); }
   function quitarImagen() { imagen = null; if (A) A.quitarImagen(); pintarImagen(); }
   $('tarjetaImagen').onclick = elegir;
   $('chipGaleria').onclick = elegir;
+  $('chipCamara').onclick = camara;
   $('chipSinImagen').onclick = quitarImagen;
 
   window.imagenCargando = () => {
     $('tarjetaImagen').innerHTML = CARITA + `<span class="pista">Cargando imagen…</span>`;
   };
-  window.imagenElegida = (dataUrl) => {
-    imagen = dataUrl || null;
+  window.imagenElegida = (url) => {
+    imagen = url || null;
     pintarImagen();
-    if (!dataUrl) avisar('No se pudo abrir esa imagen. Prueba con otra.', 'error');
+    if (!url) avisar('No se pudo abrir esa imagen. Prueba con otra.', 'error');
   };
+  window.avisoImagen = (txt) => { pintarImagen(); avisar(txt, 'error'); };
 
   function pintarVistaPrevia() {
     const d = new Date();

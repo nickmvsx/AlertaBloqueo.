@@ -18,7 +18,8 @@ import org.json.JSONObject
  */
 object AlertaFlotante {
     private val main = Handler(Looper.getMainLooper())
-    private var vista: WebView? = null
+    private var vista: android.view.View? = null
+    private var webActual: WebView? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     fun mostrar(c: Context) = main.post {
@@ -26,11 +27,13 @@ object AlertaFlotante {
         val wm = app.getSystemService(WindowManager::class.java)
 
         // Si ya hay una alerta flotante, solo se recarga con el nuevo contenido.
-        vista?.let { it.reload(); Vibracion.iniciar(app); return@post }
+        if (vista != null) { webActual?.reload(); Vibracion.iniciar(app); return@post }
 
         val web = WebView(app)
+        web.setBackgroundColor(android.graphics.Color.parseColor("#121212"))
         web.settings.javaScriptEnabled = true
         web.settings.allowFileAccess = true
+        web.settings.textZoom = 100
         web.addJavascriptInterface(Puente(app), "Android")
         web.loadUrl("file:///android_asset/alerta.html")
 
@@ -45,8 +48,15 @@ object AlertaFlotante {
         ).apply { gravity = Gravity.TOP or Gravity.START }
 
         try {
-            wm.addView(web, params)
-            vista = web
+            // Contenedor con margen para la barra de estado y la de navegación (el botón Apagar no se corta).
+            val marco = android.widget.FrameLayout(app).apply {
+                setBackgroundColor(android.graphics.Color.parseColor("#121212"))
+                setPadding(0, alto(app, "status_bar_height"), 0, alto(app, "navigation_bar_height"))
+                addView(web)
+            }
+            wm.addView(marco, params)
+            vista = marco
+            webActual = web
             Vibracion.iniciar(app)
             Config.setDiag(app, "Alerta flotante mostrada ✓")
         } catch (e: Exception) {
@@ -58,11 +68,18 @@ object AlertaFlotante {
     fun ocultar(c: Context) = main.post {
         val v = vista ?: return@post
         try { c.applicationContext.getSystemService(WindowManager::class.java).removeView(v) } catch (_: Exception) {}
-        v.destroy()
+        webActual?.destroy()
+        webActual = null
         vista = null
     }
 
     fun visible() = vista != null
+
+    @SuppressLint("DiscouragedApi", "InternalInsetResource")
+    private fun alto(c: Context, nombre: String): Int {
+        val id = c.resources.getIdentifier(nombre, "dimen", "android")
+        return if (id > 0) c.resources.getDimensionPixelSize(id) else 0
+    }
 
     private class Puente(private val app: Context) {
         @JavascriptInterface

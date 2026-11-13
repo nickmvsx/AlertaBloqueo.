@@ -44,11 +44,23 @@ class AlertActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         web = WebView(this)
+        web.setBackgroundColor(android.graphics.Color.parseColor("#121212"))
         web.settings.javaScriptEnabled = true
         web.settings.allowFileAccess = true
+        web.settings.textZoom = 100
         web.addJavascriptInterface(Puente(), "Android")
         web.loadUrl("file:///android_asset/alerta.html")
-        setContentView(web)
+        val contenedor = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#121212"))
+            addView(web)
+        }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(contenedor) { v, insets ->
+            val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+            v.setPadding(b.left, b.top, b.right, b.bottom)
+            androidx.core.view.WindowInsetsCompat.CONSUMED
+        }
+        setContentView(contenedor)
 
         ContextCompat.registerReceiver(
             this, cerrar, IntentFilter(Programador.ACCION_CERRAR), ContextCompat.RECEIVER_NOT_EXPORTED
