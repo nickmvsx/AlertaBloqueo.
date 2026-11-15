@@ -1,6 +1,8 @@
 package pe.nick.alertabloqueo
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import java.security.SecureRandom
 
 /** Configuración guardada en el teléfono. */
@@ -69,12 +71,71 @@ object Config {
     fun actualTitulo(c: Context) = p(c).getString("act_titulo", titulo(c))!!
     fun actualMensaje(c: Context) = p(c).getString("act_mensaje", mensaje(c))!!
     fun actualImagen(c: Context) = p(c).getString("act_imagen", IMAGEN_DEFECTO)!!
+    fun actualId(c: Context) = p(c).getString("act_id", "local")!!
 
-    fun setActual(c: Context, titulo: String, mensaje: String, imagen: String) {
+    fun setActual(c: Context, titulo: String, mensaje: String, imagen: String, id: String = "local") {
         p(c).edit()
             .putString("act_titulo", titulo)
             .putString("act_mensaje", mensaje)
             .putString("act_imagen", imagen)
+            .putString("act_id", id)
             .commit()
+    }
+
+    // --- Historial: últimos 3 mensajes recibidos (el más nuevo primero) ---
+    const val MAX_HISTORIAL = 3
+
+    data class Mensaje(val id: String, val titulo: String, val mensaje: String, val imagen: String, val tiempo: Long)
+
+    fun historial(c: Context): List<Mensaje> = try {
+        val a = JSONArray(p(c).getString("historial", null) ?: "[]")
+        (0 until a.length()).map {
+            val o = a.getJSONObject(it)
+            Mensaje(o.optString("id"), o.optString("titulo"), o.optString("mensaje"),
+                o.optString("imagen", IMAGEN_DEFECTO), o.optLong("tiempo"))
+        }
+    } catch (e: Exception) { emptyList() }
+
+    fun agregarHistorial(c: Context, m: Mensaje) {
+        val lista = (listOf(m) + historial(c).filter { it.id != m.id }).take(MAX_HISTORIAL)
+        val a = JSONArray()
+        lista.forEach {
+            a.put(JSONObject().put("id", it.id).put("titulo", it.titulo).put("mensaje", it.mensaje)
+                .put("imagen", it.imagen).put("tiempo", it.tiempo))
+        }
+        p(c).edit().putString("historial", a.toString()).commit()
+    }
+
+    /**
+     * Páginas que se pueden recorrer en la alerta: la alerta actual y, detrás, el historial.
+     * Si la alerta actual ya está en el historial no se repite.
+     */
+    fun paginas(c: Context): List<Mensaje> {
+        val h = historial(c)
+        val actual = Mensaje(actualId(c), actualTitulo(c), actualMensaje(c), actualImagen(c),
+            System.currentTimeMillis() / 1000)
+        return if (h.any { it.id == actual.id }) {
+            val i = h.indexOfFirst { it.id == actual.id }
+            h.drop(i)
+        } else listOf(actual) + h
+    }
+
+    // --- Mensajes rápidos (chips del paso 2) ---
+    private val RAPIDOS_DEFECTO = listOf(
+        "Te pienso", "Te extraño", "Urgente", "¿Por qué no me haces caso?", "¿Qué haces?", "¿Por qué no contestas?"
+    )
+
+    fun rapidos(c: Context): List<String> {
+        val txt = p(c).getString("rapidos", null) ?: return RAPIDOS_DEFECTO
+        return try {
+            val a = JSONArray(txt)
+            (0 until a.length()).map { a.getString(it) }
+        } catch (e: Exception) { RAPIDOS_DEFECTO }
+    }
+
+    fun setRapidos(c: Context, lista: List<String>) {
+        val a = JSONArray()
+        lista.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(20).forEach { a.put(it.take(60)) }
+        p(c).edit().putString("rapidos", a.toString()).apply()
     }
 }

@@ -1,107 +1,129 @@
 package pe.nick.alertabloqueo
 
-import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
-import android.webkit.JavascriptInterface
-import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
-import org.json.JSONObject
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 
 /**
  * Pantalla de alerta: enciende la pantalla (setTurnScreenOn) y se dibuja sobre el
- * bloqueo (setShowWhenLocked) sin desbloquear el teléfono. Muestra assets/alerta.html.
- * Sin sonido: solo vibración fuerte.
+ * bloqueo (setShowWhenLocked) sin desbloquear el teléfono. Vista nativa (VistaAlerta),
+ * que se pinta al instante también en Samsung.
+ * Con el extra SOLO_VER se usa para revisar el historial, sin vibrar.
  */
 class AlertActivity : Activity() {
 
-    private lateinit var web: WebView
-
-    private val cerrar = object : BroadcastReceiver() {
-        override fun onReceive(c: Context, i: Intent) { detener(); finish() }
+    companion object {
+        const val SOLO_VER = "solo_ver"
+        const val INDICE = "indice"
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    private var vista: VistaAlerta? = null
+    private var soloVer = false
+
+    private val cerrar = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) { if (!soloVer) finish() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        soloVer = intent.getBooleanExtra(SOLO_VER, false)
 
-        if (Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
+        if (!soloVer) {
+            if (Build.VERSION.SDK_INT >= 27) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } else {
+                @Suppress("DEPRECATION")
+                window.addFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+            }
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        web = WebView(this)
-        web.setBackgroundColor(android.graphics.Color.parseColor("#121212"))
-        web.settings.javaScriptEnabled = true
-        web.settings.allowFileAccess = true
-        web.settings.textZoom = 100
-        web.addJavascriptInterface(Puente(), "Android")
-        web.loadUrl("file:///android_asset/alerta.html")
-        val contenedor = android.widget.FrameLayout(this).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#121212"))
-            addView(web)
+        val fondo = Color.parseColor("#121212")
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        @Suppress("DEPRECATION")
+        window.statusBarColor = fondo
+        @Suppress("DEPRECATION")
+        window.navigationBarColor = fondo
+
+        val v = VistaAlerta(this, object : VistaAlerta.Acciones {
+            override fun apagar() = this@AlertActivity.apagar()
+            override fun abrirEnlace(url: String) = this@AlertActivity.abrirEnlace(url)
+        }, soloHistorial = soloVer, inicio = intent.getIntExtra(INDICE, 0))
+        vista = v
+
+        val contenedor = FrameLayout(this).apply {
+            setBackgroundColor(fondo)
+            addView(v.raiz, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(contenedor) { v, insets ->
-            val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()
-                or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
-            v.setPadding(b.left, b.top, b.right, b.bottom)
-            androidx.core.view.WindowInsetsCompat.CONSUMED
+        ViewCompat.setOnApplyWindowInsetsListener(contenedor) { c, insets ->
+            val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            c.setPadding(b.left, b.top, b.right, b.bottom)
+            WindowInsetsCompat.CONSUMED
         }
         setContentView(contenedor)
 
         ContextCompat.registerReceiver(
             this, cerrar, IntentFilter(Programador.ACCION_CERRAR), ContextCompat.RECEIVER_NOT_EXPORTED
         )
-        vibrar()
+        if (!soloVer) Vibracion.iniciar(this)
     }
 
-    /** Si llega otra alerta mientras esta está abierta, se actualiza el contenido. */
+    /** Si llega otra alerta mientras esta está abierta, se muestra la nueva. */
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        web.reload()
-        vibrar()
+        if (soloVer || intent?.getBooleanExtra(SOLO_VER, false) == true) return
+        vista?.recargar()
+        Vibracion.iniciar(this)
     }
 
-    private fun vibrar() = Vibracion.iniciar(this)
-
-    private fun detener() = Vibracion.detener()
-
     private fun apagar() {
-        detener()
+        if (soloVer) { finish(); return }
         Programador.apagar(this)
         finish()
     }
 
+    /** Abre el enlace: si el celular está bloqueado, primero pide el desbloqueo (huella/PIN). */
+    private fun abrirEnlace(url: String) {
+        Vibracion.detener()
+        val abrir = {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (_: Exception) {}
+            if (!soloVer) Programador.apagar(this)
+            finish()
+        }
+        val km = getSystemService(KeyguardManager::class.java)
+        if (km.isKeyguardLocked) {
+            km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() { abrir() }
+            })
+        } else abrir()
+    }
+
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() { /* se cierra solo con el botón Apagar */ }
+    override fun onBackPressed() {
+        if (soloVer) finish()   // en modo alerta se cierra solo con el botón Apagar
+    }
 
     override fun onDestroy() {
         try { unregisterReceiver(cerrar) } catch (_: Exception) {}
         super.onDestroy()
-    }
-
-    inner class Puente {
-        @JavascriptInterface
-        fun apagar() = runOnUiThread { this@AlertActivity.apagar() }
-
-        @JavascriptInterface
-        fun datos(): String = JSONObject()
-            .put("titulo", Config.actualTitulo(this@AlertActivity))
-            .put("mensaje", Config.actualMensaje(this@AlertActivity))
-            .put("imagen", Config.actualImagen(this@AlertActivity))
-            .toString()
     }
 }

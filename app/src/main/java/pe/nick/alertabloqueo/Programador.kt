@@ -149,6 +149,18 @@ object Programador {
         val pm = c.getSystemService(PowerManager::class.java)
         val desbloqueado = pm.isInteractive && !km.isKeyguardLocked
 
+        // Pantalla apagada: se enciende explícitamente unos segundos (Samsung a veces no la
+        // enciende solo con el full-screen intent y queda en negro hasta tocarla).
+        if (!pm.isInteractive) {
+            try {
+                @Suppress("DEPRECATION")
+                pm.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                    "alertabloqueo:encender"
+                ).acquire(10_000L)
+            } catch (_: Exception) {}
+        }
+
         Config.setDiag(c,
             (if (desbloqueado) "Celular desbloqueado" else "Celular bloqueado/apagado") +
             (if (puedeSobreponer(c)) ", permiso flotante OK" else ", SIN permiso 'Mostrar sobre otras apps'"))

@@ -126,17 +126,24 @@ class EscuchaService : Service() {
             if (!urlAdjunto.isNullOrBlank()) {
                 descargar(urlAdjunto, id)?.let { imagen = "file://" + it.absolutePath }
             }
-            Config.setActual(this, titulo, mensaje, imagen)
+            Config.agregarHistorial(this, Config.Mensaje(id, titulo, mensaje, imagen, tiempo))
+            Config.setActual(this, titulo, mensaje, imagen, id)
+            limpiarImagenes()
             Programador.mostrar(this)
         } finally {
             if (wl.isHeld) wl.release()
         }
     }
 
-    /** Descarga la imagen adjunta y borra las anteriores. */
+    /** Borra las imágenes que ya no están en el historial (se guardan solo las de los últimos 3 mensajes). */
+    private fun limpiarImagenes() {
+        val enUso = Config.historial(this).map { it.imagen.removePrefix("file://") }.toSet()
+        File(filesDir, "recibidas").listFiles()?.forEach { if (it.absolutePath !in enUso) it.delete() }
+    }
+
+    /** Descarga la imagen adjunta. */
     private fun descargar(url: String, id: String): File? = try {
         val dir = File(filesDir, "recibidas").apply { mkdirs() }
-        dir.listFiles()?.forEach { it.delete() }
         val destino = File(dir, "img_$id.jpg")
         val con = URL(url).openConnection() as HttpURLConnection
         con.connectTimeout = 15_000

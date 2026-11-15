@@ -124,6 +124,28 @@
   nav.abajo button.on { color: var(--tinta); background: var(--rosa); font-weight: 600; }
   nav.abajo .punto { position: absolute; top: 6px; right: 22%; width: 8px; height: 8px; border-radius: 50%; background: var(--error); }
   .oculto { display: none !important; }
+  /* Chips de mensajes rápidos: agregar y quitar */
+  .chip.mas { background: transparent; border: 1.5px dashed #555; color: #ddd; }
+  .chip.quitar { background: #5a1f1f; color: #ffb3b3; }
+  .agregar-fila { display: flex; gap: 8px; margin-top: 10px; }
+  .agregar-fila .campo { flex: 1; padding: 11px 14px; font-size: 15px; }
+  .agregar-fila button { flex: none; border: 0; border-radius: 99px; padding: 0 18px; font-weight: 600; font-size: 15px; background: var(--rosa); color: var(--tinta); }
+  .agregar-fila button.gris { background: #333; color: #fff; }
+  .ayuda { font-size: 12px; color: var(--suave); text-align: center; margin: 6px 0 0; }
+  /* Tarjeta de enlace (paso 4) */
+  .link-card { display: flex; gap: 12px; align-items: center; background: var(--superficie); border-radius: 18px; padding: 10px; margin-top: 14px; }
+  .link-card img, .link-card .ph { width: 56px; height: 74px; border-radius: 12px; object-fit: cover; flex: none; background: var(--rosa); }
+  .link-card b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; }
+  .link-card small { display: block; color: var(--suave); font-size: 12px; margin-top: 3px; }
+  /* Historial (pestaña Recibir) */
+  .hist { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--borde); cursor: pointer; }
+  .hist:first-child { border-top: 0; }
+  .hist img { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; flex: none; background: var(--rosa-claro); }
+  .hist div { flex: 1; min-width: 0; }
+  .hist b, .hist small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist small { color: var(--suave); font-size: 13px; margin-top: 2px; }
+  .hist .cuando { flex: none; color: var(--suave); font-size: 12px; }
+  .vacio { color: var(--suave); font-size: 14px; margin: 0; }
 </style>
 </head>
 <body>
@@ -146,9 +168,15 @@
     <div class="paso oculto" data-paso="2">
       <div class="tarjeta" id="tarjeta2"></div>
       <div class="chips" id="chipsTitulo"></div>
+      <div class="agregar-fila oculto" id="filaAgregar">
+        <input class="campo" id="nuevoRapido" type="text" maxlength="60" placeholder="Nuevo mensaje rápido">
+        <button id="okRapido">Agregar</button>
+        <button class="gris" id="cancelarRapido">✕</button>
+      </div>
+      <p class="ayuda">Mantén presionado un mensaje rápido para quitarlo</p>
       <h1 class="pregunta">¿Qué quieres<br>decirle?</h1>
       <input class="campo" id="eTitulo" type="text" maxlength="60" value="Te pienso" placeholder="Título">
-      <textarea class="campo" id="eMensaje" maxlength="300" placeholder="Escribe el mensaje…"></textarea>
+      <textarea class="campo" id="eMensaje" maxlength="300" placeholder="Escribe el mensaje o pega un link (TikTok, YouTube…)"></textarea>
     </div>
 
     <!-- Paso 3: imagen con previsualización -->
@@ -173,6 +201,7 @@
           <div class="apagar">Apagar</div>
         </div>
       </div>
+      <div class="link-card oculto" id="linkPrevio"><span class="ph" id="linkImg"></span><div><b id="linkTitulo"></b><small id="linkSitio"></small></div></div>
       <div class="chips" style="justify-content:center"><span class="chip on" id="chipPara">Para: -</span></div>
       <h1 class="pregunta">¿Enviar esta<br>alerta?</h1>
     </div>
@@ -198,6 +227,10 @@
         <label class="sw"><input id="recibir" type="checkbox"><span></span></label>
       </div>
       <p class="nota">Quien tenga tu código puede enviarte alertas. Compártelo solo con personas de confianza.</p>
+    </div>
+    <div class="bloque">
+      <h2>Últimos mensajes</h2>
+      <div id="historial"><p class="vacio">Aún no has recibido alertas.</p></div>
     </div>
   </section>
 
@@ -288,6 +321,7 @@
     document.querySelectorAll('nav.abajo button').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
     if (b.dataset.v !== 'enviar') refrescar();
+    if (b.dataset.v === 'recibir') pintarHistorial();
   });
 
   // ---------- Asistente Enviar ----------
@@ -362,14 +396,55 @@
   }
 
   // Chips de título rápido
-  const TITULOS = ['Te pienso', 'Te extraño', 'Urgente', '¿Por qué no me haces caso?', '¿Qué haces?', '¿Por qué no contestas?'];
-  $('chipsTitulo').innerHTML = TITULOS.map(t => `<button class="chip">${t}</button>`).join('');
-  function marcarTitulo() {
-    $('chipsTitulo').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === $('eTitulo').value.trim()));
+  let rapidos = ['Te pienso', 'Te extraño', 'Urgente', '¿Por qué no me haces caso?', '¿Qué haces?', '¿Por qué no contestas?'];
+  try { if (A) rapidos = JSON.parse(A.rapidos()); } catch (_) {}
+  function guardarRapidos() { try { A && A.guardarRapidos(JSON.stringify(rapidos)); } catch (_) {} }
+
+  function pintarRapidos() {
+    const cont = $('chipsTitulo');
+    cont.textContent = '';
+    rapidos.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.textContent = t;
+      let presion = null, modoQuitar = false;
+      b.onclick = () => {
+        if (modoQuitar) { rapidos.splice(i, 1); guardarRapidos(); pintarRapidos(); return; }
+        $('eTitulo').value = t; marcarTitulo();
+      };
+      // Mantener presionado: el chip pasa a "Quitar ✕" por 3 segundos
+      const inicio = () => { presion = setTimeout(() => {
+        modoQuitar = true; b.classList.add('quitar'); b.textContent = 'Quitar ✕';
+        setTimeout(() => { if (b.isConnected) { modoQuitar = false; b.classList.remove('quitar'); b.textContent = t; marcarTitulo(); } }, 3000);
+      }, 550); };
+      const fin = () => clearTimeout(presion);
+      b.addEventListener('touchstart', inicio, { passive: true });
+      b.addEventListener('touchend', fin); b.addEventListener('touchmove', fin); b.addEventListener('touchcancel', fin);
+      b.addEventListener('contextmenu', e => e.preventDefault());
+      cont.appendChild(b);
+    });
+    const mas = document.createElement('button');
+    mas.className = 'chip mas'; mas.textContent = '＋ Agregar';
+    mas.onclick = () => { $('filaAgregar').classList.remove('oculto'); $('nuevoRapido').value = $('eTitulo').value.trim(); $('nuevoRapido').focus(); };
+    cont.appendChild(mas);
+    marcarTitulo();
   }
-  $('chipsTitulo').querySelectorAll('.chip').forEach(c => c.onclick = () => { $('eTitulo').value = c.textContent; marcarTitulo(); });
+  function marcarTitulo() {
+    $('chipsTitulo').querySelectorAll('.chip:not(.mas):not(.quitar)').forEach(c => c.classList.toggle('on', c.textContent === $('eTitulo').value.trim()));
+  }
+  function agregarRapido() {
+    const t = $('nuevoRapido').value.trim();
+    if (t && !rapidos.includes(t)) { rapidos.push(t); guardarRapidos(); }
+    if (t) $('eTitulo').value = t;
+    $('filaAgregar').classList.add('oculto');
+    pintarRapidos();
+    const ultimo = $('chipsTitulo').querySelector('.chip.mas');
+    if (ultimo) ultimo.scrollIntoView({ inline: 'end', block: 'nearest' });
+  }
+  $('okRapido').onclick = agregarRapido;
+  $('nuevoRapido').onkeydown = e => { if (e.key === 'Enter') agregarRapido(); };
+  $('cancelarRapido').onclick = () => $('filaAgregar').classList.add('oculto');
   $('eTitulo').oninput = marcarTitulo;
-  marcarTitulo();
+  pintarRapidos();
 
   // Imagen
   function pintarImagen() {
@@ -409,7 +484,28 @@
     $('miniTitulo').textContent = $('eTitulo').value.trim() || '¡Atención!';
     $('miniMensaje').textContent = $('eMensaje').value.trim();
     $('chipPara').textContent = 'Para: ' + ($('destino').value.trim() || '-');
+    const msj = $('eMensaje').value.trim();
+    if (/(https?:\/\/|www\.)|\.(com|pe|net|org|be|ly)\//i.test(msj) && A) {
+      $('linkPrevio').classList.remove('oculto');
+      $('linkTitulo').textContent = 'Cargando vista previa del enlace…';
+      $('linkSitio').textContent = '';
+      $('linkImg').outerHTML = '<span class="ph" id="linkImg"></span>';
+      A.vistaEnlace(msj);
+    } else {
+      $('linkPrevio').classList.add('oculto');
+    }
   }
+  window.enlaceListo = (v) => {
+    if (!v) { $('linkPrevio').classList.add('oculto'); return; }
+    $('linkTitulo').textContent = v.titulo;
+    $('linkSitio').textContent = v.sitio;
+    if (v.imagen) {
+      const img = document.createElement('img');
+      img.id = 'linkImg'; img.alt = ''; img.src = v.imagen;
+      img.onerror = () => { img.outerHTML = '<span class="ph" id="linkImg"></span>'; };
+      $('linkImg').replaceWith(img);
+    }
+  };
 
   // ---------- Estado general ----------
   const PERMISOS = [
@@ -445,8 +541,38 @@
         ? '<span class="listo">✓ Listo</span>'
         : `<button class="perm-btn" onclick="Android.${fn}()">Conceder</button>`}</div>`).join('');
     $('puntoPermisos').classList.toggle('oculto', PERMISOS.every(p => e[p[0]]));
+    if ($('v-recibir').classList.contains('on')) pintarHistorial();
   }
   window.refrescar = refrescar;
+
+  function hace(seg) {
+    const min = Math.max(0, Math.floor((Date.now() / 1000 - seg) / 60));
+    if (min < 1) return 'ahora';
+    if (min < 60) return 'hace ' + min + ' min';
+    if (min < 1440) return 'hace ' + Math.floor(min / 60) + ' h';
+    return new Date(seg * 1000).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' });
+  }
+  function pintarHistorial() {
+    let h = [];
+    try { h = JSON.parse(A.historial()); } catch (_) { return; }
+    const cont = $('historial');
+    cont.textContent = '';
+    if (!h.length) { cont.innerHTML = '<p class="vacio">Aún no has recibido alertas.</p>'; return; }
+    h.forEach((m, i) => {
+      const fila = document.createElement('div'); fila.className = 'hist';
+      const img = document.createElement('img'); img.alt = '';
+      img.src = m.imagen.startsWith('file:///android_asset/') ? m.imagen.replace('file:///android_asset/', '') : m.imagen;
+      img.onerror = () => { img.src = 'imagen.png'; };
+      const txt = document.createElement('div');
+      const b = document.createElement('b'); b.textContent = m.titulo;
+      const sm = document.createElement('small'); sm.textContent = m.mensaje || '(sin texto)';
+      txt.append(b, sm);
+      const cu = document.createElement('span'); cu.className = 'cuando'; cu.textContent = hace(m.tiempo);
+      fila.append(img, txt, cu);
+      fila.onclick = () => A.verHistorial(i);
+      cont.appendChild(fila);
+    });
+  }
 
   // ---------- Recibir ----------
   $('compartir').onclick = () => A && A.compartirCodigo();

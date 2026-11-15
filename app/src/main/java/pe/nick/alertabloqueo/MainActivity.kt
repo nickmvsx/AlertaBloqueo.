@@ -196,6 +196,46 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun miCodigo(): String = Config.codigoBonito(c)
 
+        // --- Historial ---
+        @JavascriptInterface
+        fun historial(): String {
+            val a = org.json.JSONArray()
+            Config.historial(c).forEach {
+                a.put(JSONObject().put("titulo", it.titulo).put("mensaje", it.mensaje)
+                    .put("imagen", it.imagen).put("tiempo", it.tiempo))
+            }
+            return a.toString()
+        }
+
+        @JavascriptInterface
+        fun verHistorial(indice: Int) = runOnUiThread {
+            startActivity(Intent(c, AlertActivity::class.java)
+                .putExtra(AlertActivity.SOLO_VER, true)
+                .putExtra(AlertActivity.INDICE, indice))
+        }
+
+        // --- Mensajes rápidos propios ---
+        @JavascriptInterface
+        fun rapidos(): String = org.json.JSONArray(Config.rapidos(c)).toString()
+
+        @JavascriptInterface
+        fun guardarRapidos(json: String) {
+            val a = org.json.JSONArray(json)
+            Config.setRapidos(c, (0 until a.length()).map { a.getString(it) })
+        }
+
+        // --- Vista previa de enlaces (para el paso 4) ---
+        @JavascriptInterface
+        fun vistaEnlace(texto: String) {
+            val url = Enlaces.primero(texto)
+            if (url == null) { js("enlaceListo(null)"); return }
+            Thread {
+                val v = Enlaces.obtener(url)
+                js("enlaceListo(" + JSONObject().put("url", url).put("titulo", v.titulo)
+                    .put("sitio", v.sitio).put("imagen", v.imagen ?: "").toString() + ")")
+            }.start()
+        }
+
         @JavascriptInterface
         fun enviar(codigo: String, titulo: String, mensaje: String) {
             Config.setUltimoDestino(c, codigo)
