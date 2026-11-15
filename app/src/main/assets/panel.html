@@ -334,7 +334,6 @@
     document.querySelectorAll('.paso').forEach(p => p.classList.toggle('oculto', +p.dataset.paso !== n));
     document.querySelectorAll('.progreso i').forEach((s, i) => s.classList.toggle('on', i < n));
     $('atras').hidden = n === 1;
-    $('atras').textContent = n === 3 ? 'Omitir' : 'Atrás';
     $('siguiente').innerHTML = n === 4 ? 'Enviar alerta' : 'Siguiente <span>›</span>';
     $('avisoEnviar').textContent = ''; $('avisoEnviar').className = 'aviso';
     if (n === 3) pintarImagen();
@@ -363,11 +362,7 @@
       else setTimeout(() => enviado('Alerta enviada ✓ (vista previa)', true), 600);
     }
   };
-  // En el paso 3 el botón izquierdo es "Omitir": sigue sin imagen
-  $('atras').onclick = () => {
-    if (paso === 3) { quitarImagen(); return irA(4); }
-    irA(Math.max(1, paso - 1));
-  };
+  $('atras').onclick = () => irA(Math.max(1, paso - 1));
 
   window.enviado = (msg, ok) => {
     enviando = false;
